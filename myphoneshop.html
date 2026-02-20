@@ -3,319 +3,284 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>智能云收账系统</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>手机店智能系统 - 自动配置版</title>
     <style>
-        :root { --primary: #10b981; --bg: #f1f5f9; }
-        body { background: var(--bg); font-family: -apple-system, sans-serif; }
-        .glass-nav { background: rgba(16, 185, 129, 0.95); backdrop-filter: blur(10px); }
-        input, select { outline: none !important; }
-        .record-card { transition: all 0.2s; }
-        .record-card:active { transform: scale(0.98); }
-        #loading-screen { position: fixed; inset: 0; background: white; z-index: 3000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        :root { --primary: #10b981; --primary-dark: #059669; --bg: #f1f5f9; --error: #ef4444; --warning: #f59e0b; --dark: #1e293b; --blue: #3b82f6; --purple: #8b5cf6; --tng: #0052cc; --cash: #059669; --bank: #ea580c; --debt: #dc2626; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { margin: 0; font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--dark); overflow-x: hidden; }
+        
+        /* 登录界面样式 */
+        #login-overlay { position: fixed; inset: 0; background: white; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .login-box { width: 100%; max-width: 350px; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 1px solid #eee; }
+        .login-box h2 { margin-top: 0; color: var(--primary); text-align: center; }
+        .login-box input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; outline: none; }
+        .login-box button { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+
+        /* 主体布局 */
+        #main-content { display: none; }
+        nav { background: var(--primary); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .container { padding: 20px; max-width: 600px; margin: auto; padding-bottom: 100px; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; }
+        select, input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; background: #fff; }
+        
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        button { padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-main { background: var(--primary); color: white; }
+        .btn-blue { background: var(--blue); color: white; }
+        
+        /* 数据显示 */
+        .record-item { background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 5px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
+        .type-minus { border-left-color: var(--error); }
+        .type-plus { border-left-color: var(--primary); }
+        .type-repay { border-left-color: var(--purple); }
+
+        /* 侧边栏 */
+        #side-panel { position: fixed; top: 0; left: -280px; width: 280px; height: 100%; background: white; z-index: 200; transition: 0.3s; padding: 20px; box-shadow: 2px 0 10px rgba(0,0,0,0.1); overflow-y: auto; }
+        #side-panel.open { left: 0; }
+        #side-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 199; display: none; }
     </style>
 </head>
-<body class="pb-20">
+<body>
 
-    <div id="loading-screen">
-        <div class="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <div class="text-slate-400 text-sm">正在初始化云端配置...</div>
-    </div>
-
-    <!-- 登录遮罩层 -->
-    <div id="login-overlay" class="fixed inset-0 bg-slate-100 z-[2000] flex items-center justify-center p-6 hidden">
-        <div class="w-full max-w-sm bg-white rounded-3xl shadow-2xl p-8 text-center">
-            <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-            </div>
-            <h2 class="text-2xl font-bold text-slate-800 mb-6">云端系统验证</h2>
-            <input type="text" id="user-id" placeholder="用户 ID" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl mb-4 text-center font-bold">
-            <input type="password" id="pass-input" placeholder="登录密码" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl mb-6 text-center font-bold">
-            <p id="login-msg" class="text-red-500 text-sm mb-4 hidden"></p>
-            <button id="btn-login" class="w-full py-4 bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 active:scale-95 transition-transform">立即登录</button>
+    <!-- 登录层 -->
+    <div id="login-overlay">
+        <div class="login-box">
+            <h2>系统登录</h2>
+            <div id="login-msg" style="color:red; text-align:center; font-size:12px; height:15px;"></div>
+            <input type="text" id="login-user" placeholder="请输入账号">
+            <input type="password" id="login-pass" placeholder="请输入密码">
+            <button onclick="attemptLogin()">进入系统</button>
+            <p style="font-size: 10px; color: #999; text-align: center; margin-top: 20px;">数据将自动从 user.json 与 config.json 加载</p>
         </div>
     </div>
 
     <!-- 主界面 -->
-    <nav class="glass-nav text-white p-4 sticky top-0 z-50 flex justify-between items-center shadow-md">
-        <div class="flex items-center gap-2">
-            <div class="bg-white/20 p-2 rounded-lg">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+    <div id="main-content">
+        <nav>
+            <div style="display:flex; align-items:center;">
+                <span onclick="toggleSidePanel()" style="margin-right:15px; cursor:pointer; font-size:20px;">☰</span>
+                <b id="nav-title">收账系统</b>
             </div>
-            <span class="font-bold tracking-wide" id="nav-title">智能云收账</span>
+            <span id="live-bal-view" style="font-size: 12px; background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 5px;">加载中...</span>
+        </nav>
+
+        <div class="container">
+            <div class="card">
+                <div class="form-group">
+                    <label>交易类型</label>
+                    <div class="btn-grid">
+                        <button id="mode-sale" class="btn-main" onclick="setMode('minus')">卖出 (收账)</button>
+                        <button id="mode-stock" style="background:#ddd;" onclick="setMode('plus')">补库存</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>电讯商</label>
+                    <select id="telco" onchange="updateLivePreview()"></select>
+                </div>
+
+                <div id="sale-fields">
+                    <div class="form-group">
+                        <label>客户群组</label>
+                        <select id="cust-group"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>客户姓名</label>
+                        <input type="text" id="cust-name" placeholder="选填">
+                    </div>
+                    <div class="form-group">
+                        <label>手机号/备忘</label>
+                        <input type="tel" id="phone" placeholder="手机号或记录">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label id="amt-label">卖出金额 (RM)</label>
+                    <input type="number" id="amount" step="0.01" placeholder="0.00">
+                </div>
+
+                <div class="form-group" id="pay-group">
+                    <label>支付方式</label>
+                    <select id="pay-method"></select>
+                </div>
+
+                <button class="btn-main" style="width:100%; margin-top:10px; padding:15px;" onclick="addRecord()">提交记录</button>
+            </div>
+
+            <h3 id="record-title">今日记录 (0)</h3>
+            <div id="record-list"></div>
         </div>
-        <button id="btn-logout" class="p-2 bg-black/10 rounded-lg active:scale-90 transition-transform">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-        </button>
-    </nav>
-
-    <div class="max-w-md mx-auto p-4 space-y-4 hidden" id="main-app">
-        <!-- 统计 -->
-        <div class="grid grid-cols-2 gap-4">
-            <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-emerald-500">
-                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">今日累计</p>
-                <p class="text-xl font-black text-emerald-600" id="today-total">RM 0.00</p>
-            </div>
-            <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-blue-500">
-                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">操作员</p>
-                <p class="text-xl font-black text-blue-600 truncate" id="current-op">-</p>
-            </div>
-        </div>
-
-        <!-- 记账表单 -->
-        <div class="bg-white p-5 rounded-3xl shadow-sm space-y-4">
-            <div class="grid grid-cols-2 gap-3">
-                <div class="space-y-1">
-                    <label class="text-[10px] font-bold text-slate-400 ml-1">电讯商</label>
-                    <select id="telco" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-100 text-sm font-semibold"></select>
-                </div>
-                <div class="space-y-1">
-                    <label class="text-[10px] font-bold text-slate-400 ml-1">金额 RM</label>
-                    <input type="number" id="amount" placeholder="0.00" step="0.01" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-100 text-sm font-semibold">
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3">
-                <div class="space-y-1">
-                    <label class="text-[10px] font-bold text-slate-400 ml-1">支付方式</label>
-                    <select id="payment" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-100 text-sm font-semibold"></select>
-                </div>
-                <div class="space-y-1">
-                    <label class="text-[10px] font-bold text-slate-400 ml-1">客户群体</label>
-                    <select id="group" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-100 text-sm font-semibold"></select>
-                </div>
-            </div>
-
-            <button id="btn-add" class="w-full py-4 bg-emerald-500 text-white font-bold rounded-2xl shadow-lg shadow-emerald-100 active:scale-95 transition-transform flex items-center justify-center gap-2 mt-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
-                确认并存入云端
-            </button>
-        </div>
-
-        <div id="record-list" class="space-y-3"></div>
     </div>
 
-    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full text-sm shadow-2xl opacity-0 transition-opacity z-[3000] pointer-events-none"></div>
+    <!-- 侧边栏 -->
+    <div id="side-overlay" onclick="toggleSidePanel()"></div>
+    <div id="side-panel">
+        <h3 style="color:var(--primary)">功能菜单</h3>
+        <hr>
+        <button onclick="exportCSV()" style="width:100%; margin:5px 0; background:#eee;">导出今日 CSV</button>
+        <div style="margin-top:20px; font-size:12px; color:#666;">
+            <p>提示：GitHub 环境无法自动同步数据。请定期使用导出功能备份到本地。</p>
+        </div>
+    </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    <script>
+        let TELCOS = [];
+        let GROUPS = [];
+        let METHODS = [];
+        let USERS = [];
+        
+        let currentMode = 'minus';
+        let records = JSON.parse(localStorage.getItem('my_billing_v1') || '[]');
+        let balances = JSON.parse(localStorage.getItem('my_balances_v1') || '{}');
 
-        // ========================================================
-        // 1. 核心配置：请在这里填入你的真实 Firebase 配置
-        // ========================================================
-        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-		const firebaseConfig = {
-		  apiKey: "AIzaSyDRKsIjOw398wYpvhHlLNrqEGlV-pq3AdY",
-		  authDomain: "myphoneshop-cf5ae.firebaseapp.com",
-		  projectId: "myphoneshop-cf5ae",
-		  storageBucket: "myphoneshop-cf5ae.firebasestorage.app",
-		  messagingSenderId: "117311435705",
-		  appId: "1:117311435705:web:e53f5f9813798c57e33c68",
-		  measurementId: "G-62KPF9GFKK"
-		};
-
-        // 默认备选配置
-        const DEFAULT_SYSTEM_CONFIG = {
-            telcoOptions: ["Maxis", "Digi", "Celcom", "U Mobile", "RedONE", "Yes", "XOX", "Unifi"],
-            paymentMethods: ["Cash", "TNG", "Bank Transfer"],
-            customerGroups: ["普通客户", "熟客", "批发商"]
-        };
-
-        const DEFAULT_USER_CONFIG = {
-            users: [
-                { id: "admin", password: "123" },
-                { id: "staff", password: "456" }
-            ]
-        };
-
-        // 核心：安全地获取配置，防止 ReferenceError
-        const getFirebaseConfig = () => {
-            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-                return JSON.parse(__firebase_config);
-            }
-            return myFirebaseConfig;
-        };
-
-        let db, auth;
-        const config = getFirebaseConfig();
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'phone-billing-v2';
-
-        // 初始化 Firebase
-        try {
-            if (!config.apiKey || config.apiKey.includes("你的_")) {
-                console.warn("未检测到有效的 Firebase API Key，云端功能可能无法使用。");
-            }
-            const app = initializeApp(config);
-            db = getFirestore(app);
-            auth = getAuth(app);
-        } catch (e) {
-            console.error("Firebase 初始化失败:", e);
-        }
-
-        let SYSTEM_CONFIG = DEFAULT_SYSTEM_CONFIG;
-        let USER_CONFIG = DEFAULT_USER_CONFIG;
-        let records = [];
-
-        async function init() {
+        // 1. 加载配置文件
+        async function loadConfigs() {
             try {
-                // 尝试加载本地文件（仅在服务器环境下有效）
-                const cRes = await fetch('config.json');
-                const uRes = await fetch('user.json');
-                if (cRes.ok) SYSTEM_CONFIG = await cRes.json();
-                if (uRes.ok) USER_CONFIG = await uRes.json();
+                const configRes = await fetch('config.json');
+                const config = await configRes.json();
+                TELCOS = config.telcoOptions;
+                GROUPS = config.customerGroups;
+                METHODS = config.paymentMethods;
+
+                const userRes = await fetch('user.json');
+                const userData = await userRes.json();
+                USERS = userData.users;
+
+                renderDropdowns();
+                initBalances();
             } catch (e) {
-                console.log("使用内置默认数据运行");
+                console.error("加载 JSON 失败:", e);
+                alert("无法找到 config.json 或 user.json，请检查文件是否在同一目录。");
             }
-            
-            populateSelects();
-            checkAuth();
-            document.getElementById('loading-screen')?.remove();
         }
 
-        function populateSelects() {
-            const fill = (id, list) => {
-                const el = document.getElementById(id);
-                if (el) el.innerHTML = list.map(i => `<option value="${i}">${i}</option>`).join('');
+        function renderDropdowns() {
+            const t = document.getElementById('telco');
+            t.innerHTML = TELCOS.map(v => `<option value="${v}">${v}</option>`).join('');
+            
+            const g = document.getElementById('cust-group');
+            g.innerHTML = GROUPS.map(v => `<option value="${v}">${v}</option>`).join('');
+            
+            const p = document.getElementById('pay-method');
+            p.innerHTML = METHODS.map(v => `<option value="${v}">${v}</option>`).join('');
+            updateLivePreview();
+        }
+
+        function initBalances() {
+            TELCOS.forEach(t => { if(!balances[t]) balances[t] = 0; });
+        }
+
+        // 2. 登录逻辑
+        function attemptLogin() {
+            const u = document.getElementById('login-user').value;
+            const p = document.getElementById('login-pass').value;
+            const found = USERS.find(user => user.id === u && user.password === p);
+
+            if (found) {
+                document.getElementById('login-overlay').style.display = 'none';
+                document.getElementById('main-content').style.display = 'block';
+                updateUI();
+            } else {
+                document.getElementById('login-msg').innerText = "账号或密码错误";
+            }
+        }
+
+        // 3. 业务逻辑
+        function setMode(m) {
+            currentMode = m;
+            document.getElementById('mode-sale').style.background = m === 'minus' ? 'var(--primary)' : '#ddd';
+            document.getElementById('mode-stock').style.background = m === 'plus' ? 'var(--primary)' : '#ddd';
+            document.getElementById('sale-fields').style.display = m === 'minus' ? 'block' : 'none';
+            document.getElementById('pay-group').style.display = m === 'minus' ? 'block' : 'none';
+            document.getElementById('amt-label').innerText = m === 'minus' ? '卖出金额 (RM)' : '补库存金额 (RM)';
+        }
+
+        function addRecord() {
+            const amt = parseFloat(document.getElementById('amount').value);
+            const telco = document.getElementById('telco').value;
+            if(!amt) return alert("请输入金额");
+
+            const rec = {
+                id: Date.now(),
+                type: currentMode,
+                telco: telco,
+                amount: amt,
+                group: document.getElementById('cust-group').value,
+                name: document.getElementById('cust-name').value || '无名',
+                phone: document.getElementById('phone').value,
+                method: document.getElementById('pay-method').value,
+                time: new Date().toLocaleString()
             };
-            fill('telco', SYSTEM_CONFIG.telcoOptions);
-            fill('payment', SYSTEM_CONFIG.paymentMethods);
-            fill('group', SYSTEM_CONFIG.customerGroups);
+
+            if(currentMode === 'minus') balances[telco] -= amt;
+            else balances[telco] += amt;
+
+            records.unshift(rec);
+            saveData();
+            updateUI();
+            document.getElementById('amount').value = '';
         }
 
-        // 绑定登录事件
-        document.getElementById('btn-login').addEventListener('click', () => {
-            const id = document.getElementById('user-id').value;
-            const pw = document.getElementById('pass-input').value;
-            const msg = document.getElementById('login-msg');
-
-            const valid = USER_CONFIG.users?.find(u => u.id === id && u.password === pw);
-            if (valid) {
-                sessionStorage.setItem('isLoggedIn', 'true');
-                sessionStorage.setItem('userName', id);
-                enterApp();
-            } else {
-                msg.innerText = "ID 或密码错误";
-                msg.classList.remove('hidden');
-            }
-        });
-
-        // 退出登录
-        document.getElementById('btn-logout').addEventListener('click', () => {
-            sessionStorage.clear();
-            location.reload();
-        });
-
-        // 增加记录
-        document.getElementById('btn-add').addEventListener('click', async () => {
-            const amtVal = document.getElementById('amount').value;
-            const amt = parseFloat(amtVal);
-            if (!amt || isNaN(amt)) return showToast("请输入有效金额");
-
-            try {
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'records'), {
-                    telco: document.getElementById('telco').value,
-                    amount: amt,
-                    payment: document.getElementById('payment').value,
-                    group: document.getElementById('group').value,
-                    createdBy: sessionStorage.getItem('userName'),
-                    timestamp: serverTimestamp()
-                });
-                document.getElementById('amount').value = '';
-                showToast("✅ 云端已同步");
-            } catch (e) {
-                showToast("❌ 保存失败：权限不足或配置错误");
-                console.error(e);
-            }
-        });
-
-        // 删除记录
-        window.deleteRec = async (id) => {
-            if (confirm("确定要删除这条云端记录吗？")) {
-                try {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'records', id));
-                    showToast("已删除");
-                } catch (e) {
-                    showToast("删除失败");
-                }
-            }
-        };
-
-        async function enterApp() {
-            document.getElementById('login-overlay').style.display = 'none';
-            document.getElementById('main-app').classList.remove('hidden');
-            document.getElementById('current-op').innerText = sessionStorage.getItem('userName');
-            
-            try {
-                await signInAnonymously(auth);
-                startListening();
-            } catch (e) {
-                console.error("Auth Error:", e);
-                showToast("⚠️ 无法连接 Firebase (匿名验证未开启)");
-            }
+        function saveData() {
+            localStorage.setItem('my_billing_v1', JSON.stringify(records));
+            localStorage.setItem('my_balances_v1', JSON.stringify(balances));
         }
 
-        function startListening() {
-            const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'records'));
-            onSnapshot(q, (snapshot) => {
-                records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-                    .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-                renderRecords();
-            }, (error) => {
-                console.error("Firestore 监听错误:", error);
-                if (error.code === 'permission-denied') {
-                    showToast("❌ 权限拒绝：请设置 Firestore 规则");
-                }
-            });
-        }
-
-        function renderRecords() {
+        function updateUI() {
             const list = document.getElementById('record-list');
-            const totalEl = document.getElementById('today-total');
-            let total = 0;
-
-            list.innerHTML = records.map(r => {
-                total += r.amount || 0;
-                const time = r.timestamp ? new Date(r.timestamp.seconds * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '...';
-                return `
-                    <div class="bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center border border-slate-50">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl ${r.payment === 'Cash' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'} flex items-center justify-center font-bold text-xs text-center leading-tight">
-                                ${r.payment === 'Cash' ? '现金' : '电子'}
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-slate-800 text-sm">${r.telco}</h4>
-                                <p class="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">${time} · ${r.createdBy}</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span class="font-black text-emerald-600">RM ${r.amount?.toFixed(2)}</span>
-                            <button onclick="deleteRec('${r.id}')" class="text-slate-200 hover:text-red-400 p-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                            </button>
-                        </div>
+            list.innerHTML = records.map(r => `
+                <div class="record-item type-${r.type}">
+                    <div>
+                        <b>${r.telco}</b> - RM ${r.amount.toFixed(2)}<br>
+                        <small>${r.name} | ${r.time}</small>
                     </div>
-                `;
-            }).join('');
-            totalEl.innerText = `RM ${total.toFixed(2)}`;
+                    <button onclick="deleteRecord(${r.id})" style="color:red; background:none;">✕</button>
+                </div>
+            `).join('');
+            document.getElementById('record-title').innerText = `今日记录 (${records.length})`;
+            updateLivePreview();
         }
 
-        function checkAuth() {
-            if (sessionStorage.getItem('isLoggedIn') === 'true') {
-                enterApp();
-            } else {
-                document.getElementById('login-overlay').classList.remove('hidden');
-            }
+        function deleteRecord(id) {
+            const i = records.findIndex(r => r.id === id);
+            const r = records[i];
+            if(r.type === 'minus') balances[r.telco] += r.amount;
+            else balances[r.telco] -= r.amount;
+            records.splice(i, 1);
+            saveData();
+            updateUI();
         }
 
-        function showToast(m) {
-            const t = document.getElementById('toast');
-            t.innerText = m; t.style.opacity = 1;
-            setTimeout(() => t.style.opacity = 0, 2000);
+        function updateLivePreview() {
+            const telco = document.getElementById('telco').value;
+            const bal = balances[telco] || 0;
+            document.getElementById('live-bal-view').innerText = `库存: RM ${bal.toFixed(2)}`;
         }
 
-        init();
+        function toggleSidePanel() {
+            const p = document.getElementById('side-panel');
+            const o = document.getElementById('side-overlay');
+            const isOpen = p.classList.toggle('open');
+            o.style.display = isOpen ? 'block' : 'none';
+        }
+
+        function exportCSV() {
+            let csv = "时间,电讯商,类型,金额,客户,支付方式\n";
+            records.forEach(r => {
+                csv += `${r.time},${r.telco},${r.type},${r.amount},${r.name},${r.method}\n`;
+            });
+            const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `账单_${new Date().toLocaleDateString()}.csv`;
+            link.click();
+        }
+
+        // 初始化加载
+        window.onload = loadConfigs;
     </script>
 </body>
 </html>
