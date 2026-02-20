@@ -19,7 +19,7 @@
 
     <div id="loading-screen">
         <div class="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <div class="text-slate-400 text-sm">正在连接云端服务...</div>
+        <div class="text-slate-400 text-sm">正在初始化云端配置...</div>
     </div>
 
     <!-- 登录遮罩层 -->
@@ -103,9 +103,10 @@
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         // ========================================================
-        // 1. 核心配置：请务必替换为你自己的 Firebase 配置
+        // 1. 核心配置：请在这里填入你的真实 Firebase 配置
         // ========================================================
-        const firebaseConfig = {
+        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+		const firebaseConfig = {
 		  apiKey: "AIzaSyDRKsIjOw398wYpvhHlLNrqEGlV-pq3AdY",
 		  authDomain: "myphoneshop-cf5ae.firebaseapp.com",
 		  projectId: "myphoneshop-cf5ae",
@@ -115,9 +116,7 @@
 		  measurementId: "G-62KPF9GFKK"
 		};
 
-        // ========================================================
-        // 2. 备选配置：如果你还没有 config.json 和 user.json，系统会使用以下默认值
-        // ========================================================
+        // 默认备选配置
         const DEFAULT_SYSTEM_CONFIG = {
             telcoOptions: ["Maxis", "Digi", "Celcom", "U Mobile", "RedONE", "Yes", "XOX", "Unifi"],
             paymentMethods: ["Cash", "TNG", "Bank Transfer"],
@@ -131,31 +130,43 @@
             ]
         };
 
-        const config = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : myFirebaseConfig;
-        
+        // 核心：安全地获取配置，防止 ReferenceError
+        const getFirebaseConfig = () => {
+            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                return JSON.parse(__firebase_config);
+            }
+            return myFirebaseConfig;
+        };
+
         let db, auth;
+        const config = getFirebaseConfig();
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'phone-billing-v2';
+
+        // 初始化 Firebase
         try {
+            if (!config.apiKey || config.apiKey.includes("你的_")) {
+                console.warn("未检测到有效的 Firebase API Key，云端功能可能无法使用。");
+            }
             const app = initializeApp(config);
             db = getFirestore(app);
             auth = getAuth(app);
         } catch (e) {
-            console.error("Firebase Init Error:", e);
+            console.error("Firebase 初始化失败:", e);
         }
 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'phone-billing-v2';
         let SYSTEM_CONFIG = DEFAULT_SYSTEM_CONFIG;
         let USER_CONFIG = DEFAULT_USER_CONFIG;
         let records = [];
 
         async function init() {
-            // 尝试加载本地文件，如果加载失败则使用默认值
             try {
+                // 尝试加载本地文件（仅在服务器环境下有效）
                 const cRes = await fetch('config.json');
                 const uRes = await fetch('user.json');
                 if (cRes.ok) SYSTEM_CONFIG = await cRes.json();
                 if (uRes.ok) USER_CONFIG = await uRes.json();
             } catch (e) {
-                console.log("使用内置默认配置运行");
+                console.log("使用内置默认数据运行");
             }
             
             populateSelects();
@@ -173,6 +184,7 @@
             fill('group', SYSTEM_CONFIG.customerGroups);
         }
 
+        // 绑定登录事件
         document.getElementById('btn-login').addEventListener('click', () => {
             const id = document.getElementById('user-id').value;
             const pw = document.getElementById('pass-input').value;
@@ -189,11 +201,13 @@
             }
         });
 
+        // 退出登录
         document.getElementById('btn-logout').addEventListener('click', () => {
             sessionStorage.clear();
             location.reload();
         });
 
+        // 增加记录
         document.getElementById('btn-add').addEventListener('click', async () => {
             const amtVal = document.getElementById('amount').value;
             const amt = parseFloat(amtVal);
@@ -211,11 +225,12 @@
                 document.getElementById('amount').value = '';
                 showToast("✅ 云端已同步");
             } catch (e) {
-                showToast("❌ 保存失败，请检查数据库权限");
+                showToast("❌ 保存失败：权限不足或配置错误");
                 console.error(e);
             }
         });
 
+        // 删除记录
         window.deleteRec = async (id) => {
             if (confirm("确定要删除这条云端记录吗？")) {
                 try {
@@ -236,7 +251,8 @@
                 await signInAnonymously(auth);
                 startListening();
             } catch (e) {
-                showToast("连接 Firebase 失败");
+                console.error("Auth Error:", e);
+                showToast("⚠️ 无法连接 Firebase (匿名验证未开启)");
             }
         }
 
@@ -247,9 +263,9 @@
                     .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
                 renderRecords();
             }, (error) => {
-                console.error("Firestore Listen Error:", error);
+                console.error("Firestore 监听错误:", error);
                 if (error.code === 'permission-denied') {
-                    showToast("权限不足：请在 Firebase 控制台设置 Rules");
+                    showToast("❌ 权限拒绝：请设置 Firestore 规则");
                 }
             });
         }
@@ -265,7 +281,7 @@
                 return `
                     <div class="bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center border border-slate-50">
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl ${r.payment === 'Cash' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'} flex items-center justify-center font-bold text-xs">
+                            <div class="w-10 h-10 rounded-xl ${r.payment === 'Cash' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'} flex items-center justify-center font-bold text-xs text-center leading-tight">
                                 ${r.payment === 'Cash' ? '现金' : '电子'}
                             </div>
                             <div>
