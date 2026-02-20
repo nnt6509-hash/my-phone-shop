@@ -1,0 +1,303 @@
+import React, { useState, useEffect } from 'react';
+import { initializeApp } from 'firebase/app';
+import { 
+  getFirestore, collection, doc, setDoc, getDoc, 
+  onSnapshot, query, addDoc, serverTimestamp, 
+  deleteDoc 
+} from 'firebase/firestore';
+import { 
+  getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged 
+} from 'firebase/auth';
+import { LogOut, Plus, Trash2, Wallet, CreditCard, Users, Smartphone, TrendingUp } from 'lucide-react';
+
+// ========================================================
+// 1. 在下方填入你的 Firebase 配置信息
+// 你可以从 Firebase Console -> 项目设置 -> 你的应用 中找到这些信息
+// ========================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyDRKsIjOw398wYpvhHlLNrqEGlV-pq3AdY",
+  authDomain: "myphoneshop-cf5ae.firebaseapp.com",
+  projectId: "myphoneshop-cf5ae",
+  storageBucket: "myphoneshop-cf5ae.firebasestorage.app",
+  messagingSenderId: "117311435705",
+  appId: "1:117311435705:web:e53f5f9813798c57e33c68",
+  measurementId: "G-62KPF9GFKK"
+
+// 兼容环境配置 (如果在预览环境则使用系统配置，否则使用你填写的配置)
+const finalConfig = typeof __firebase_config !== 'undefined' 
+  ? JSON.parse(__firebase_config) 
+  : myFirebaseConfig;
+
+const SYSTEM_CONFIG = {
+  telcoOptions: ["Maxis", "Digi", "Celcom", "U Mobile", "RedONE", "Yes", "XOX", "Unifi"],
+  customerGroups: ["普通客户", "熟客", "批发商", "员工"],
+  paymentMethods: ["Cash", "TNG", "Bank"]
+};
+
+const app = initializeApp(finalConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'phone-billing-v2';
+
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loginData, setLoginData] = useState({ id: '', password: '' });
+  const [loginError, setLoginError] = useState('');
+  
+  const [records, setRecords] = useState([]);
+  const [formData, setFormData] = useState({
+    telco: SYSTEM_CONFIG.telcoOptions[0],
+    amount: '',
+    payment: SYSTEM_CONFIG.paymentMethods[0],
+    group: SYSTEM_CONFIG.customerGroups[0]
+  });
+  const [toast, setToast] = useState('');
+
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (err) {
+        console.error("Auth failed", err);
+      }
+    };
+    initAuth();
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!user || !sessionStorage.getItem('isLoggedIn')) return;
+
+    // 遵循规则 1: 使用指定的 Firestore 路径
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'records'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // 遵循规则 2: 在内存中排序
+      const sorted = docs.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+      setRecords(sorted);
+    }, (err) => {
+      console.error("Firestore error:", err);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  const handleLogin = async () => {
+    setLoginError('');
+    try {
+      const response = await fetch('user.json');
+      const data = await response.json();
+      const validUser = data.users.find(u => u.id === loginData.id && u.password === loginData.password);
+      
+      if (validUser) {
+        sessionStorage.setItem('isLoggedIn', 'true');
+        sessionStorage.setItem('userName', loginData.id);
+        window.location.reload(); 
+      } else {
+        setLoginError('ID 或密码不正确');
+      }
+    } catch (e) {
+      setLoginError('无法加载验证文件');
+    }
+  };
+
+  const addRecord = async () => {
+    if (!formData.amount || isNaN(formData.amount)) {
+      showToast("请输入有效金额");
+      return;
+    }
+    if (!user) return;
+
+    try {
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'records'), {
+        ...formData,
+        amount: parseFloat(formData.amount),
+        createdBy: sessionStorage.getItem('userName'),
+        timestamp: serverTimestamp()
+      });
+      setFormData({ ...formData, amount: '' });
+      showToast("记录成功！");
+    } catch (e) {
+      showToast("保存失败");
+    }
+  };
+
+  const deleteRecord = async (id) => {
+    if (!window.confirm("确定删除此记录吗？")) return;
+    try {
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'records', id));
+      showToast("已删除");
+    } catch (e) {
+      showToast("删除失败");
+    }
+  };
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(''), 3000);
+  };
+
+  if (loading) return <div className="flex items-center justify-center h-screen bg-slate-50 font-sans">加载中...</div>;
+
+  if (!sessionStorage.getItem('isLoggedIn')) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-100 p-6 font-sans">
+        <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-8">
+          <h2 className="text-2xl font-bold text-emerald-600 mb-6 text-center">系统验证</h2>
+          <div className="space-y-4">
+            <input 
+              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-emerald-500"
+              placeholder="用户 ID"
+              value={loginData.id}
+              onChange={e => setLoginData({...loginData, id: e.target.value})}
+            />
+            <input 
+              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-emerald-500"
+              type="password"
+              placeholder="密码"
+              value={loginData.password}
+              onChange={e => setLoginData({...loginData, password: e.target.value})}
+            />
+            {loginError && <p className="text-red-500 text-sm">{loginError}</p>}
+            <button 
+              onClick={handleLogin}
+              className="w-full py-4 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-600 transition-colors shadow-lg"
+            >
+              登 录
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const todayTotal = records.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+
+  return (
+    <div className="min-h-screen bg-slate-50 pb-20 font-sans">
+      <nav className="bg-emerald-500 text-white p-4 sticky top-0 z-50 flex justify-between items-center shadow-md">
+        <h1 className="font-bold text-lg flex items-center gap-2">
+          <Smartphone size={20} /> 智能云收账
+        </h1>
+        <button onClick={() => { sessionStorage.clear(); window.location.reload(); }} className="p-2 bg-emerald-600 rounded-lg active:scale-90 transition-transform">
+          <LogOut size={18} />
+        </button>
+      </nav>
+
+      <div className="max-w-md mx-auto p-4 space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-emerald-500">
+            <p className="text-xs text-slate-500 mb-1">今日累计金额</p>
+            <p className="text-xl font-bold text-emerald-600">RM {todayTotal.toFixed(2)}</p>
+          </div>
+          <div className="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-blue-500">
+            <p className="text-xs text-slate-500 mb-1">当前操作员</p>
+            <p className="text-xl font-bold text-blue-600 truncate">{sessionStorage.getItem('userName')}</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl shadow-sm space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-400">电讯商</label>
+              <select 
+                value={formData.telco}
+                onChange={e => setFormData({...formData, telco: e.target.value})}
+                className="w-full p-3 bg-slate-50 rounded-xl border border-slate-100 outline-emerald-500"
+              >
+                {SYSTEM_CONFIG.telcoOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-400">金额 RM</label>
+              <input 
+                type="number"
+                placeholder="0.00"
+                value={formData.amount}
+                onChange={e => setFormData({...formData, amount: e.target.value})}
+                className="w-full p-3 bg-slate-50 rounded-xl border border-slate-100 outline-emerald-500"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-400">支付方式</label>
+              <select 
+                value={formData.payment}
+                onChange={e => setFormData({...formData, payment: e.target.value})}
+                className="w-full p-3 bg-slate-50 rounded-xl border border-slate-100 outline-emerald-500"
+              >
+                {SYSTEM_CONFIG.paymentMethods.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-400">客户群体</label>
+              <select 
+                value={formData.group}
+                onChange={e => setFormData({...formData, group: e.target.value})}
+                className="w-full p-3 bg-slate-50 rounded-xl border border-slate-100 outline-emerald-500"
+              >
+                {SYSTEM_CONFIG.customerGroups.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <button 
+            onClick={addRecord}
+            className="w-full py-4 bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-100 active:scale-95 transition-transform flex items-center justify-center gap-2"
+          >
+            <Plus size={20} /> 保存销售记录
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          <h3 className="font-bold text-slate-700 px-1">今日流水记录</h3>
+          {records.length === 0 ? (
+            <div className="text-center py-10 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">暂无云端数据</div>
+          ) : (
+            records.map(record => (
+              <div key={record.id} className="bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center group border border-transparent hover:border-emerald-100 transition-all">
+                <div className="flex gap-4 items-center">
+                  <div className={`p-3 rounded-xl ${record.payment === 'Cash' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
+                    {record.payment === 'Cash' ? <Wallet size={20} /> : <CreditCard size={20} />}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-800">{record.telco}</h4>
+                    <p className="text-[10px] text-slate-400">
+                      {record.timestamp ? new Date(record.timestamp.seconds * 1000).toLocaleTimeString() : '处理中...'} · {record.createdBy}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="font-bold text-emerald-600">RM {record.amount?.toFixed(2)}</span>
+                  <button 
+                    onClick={() => deleteRecord(record.id)}
+                    className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {toast && (
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full text-sm shadow-2xl z-[100] animate-in fade-in slide-in-from-bottom-4 duration-300">
+          {toast}
+        </div>
+      )}
+    </div>
+  );
+}

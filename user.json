@@ -1,9 +1,12 @@
 {
-  "shopName": "智能手机店 (云端同步版)",
-  "staff": [
-    "老板",
-    "职员A",
-    "职员B"
-  ],
-  "currency": "RM"
+  "users": [
+    {
+      "id": "a",
+      "password": "1"
+    },
+    {
+      "id": "staff1",
+      "password": "pass"
+    }
+  ]
 }
