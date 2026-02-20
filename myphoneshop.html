@@ -12,12 +12,15 @@
         input, select { outline: none !important; }
         .record-card { transition: all 0.2s; }
         .record-card:active { transform: scale(0.98); }
-        #loading-screen { position: fixed; inset: 0; background: white; z-index: 3000; display: flex; align-items: center; justify-content: center; }
+        #loading-screen { position: fixed; inset: 0; background: white; z-index: 3000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
     </style>
 </head>
 <body class="pb-20">
 
-    <div id="loading-screen text-slate-400 text-sm">系统加载中...</div>
+    <div id="loading-screen">
+        <div class="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <div class="text-slate-400 text-sm">正在连接云端服务...</div>
+    </div>
 
     <!-- 登录遮罩层 -->
     <div id="login-overlay" class="fixed inset-0 bg-slate-100 z-[2000] flex items-center justify-center p-6 hidden">
@@ -25,9 +28,9 @@
             <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
             </div>
-            <h2 class="text-2xl font-bold text-slate-800 mb-6">系统身份验证</h2>
-            <input type="text" id="user-id" placeholder="用户 ID" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl mb-4">
-            <input type="password" id="pass-input" placeholder="登录密码" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl mb-6">
+            <h2 class="text-2xl font-bold text-slate-800 mb-6">云端系统验证</h2>
+            <input type="text" id="user-id" placeholder="用户 ID" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl mb-4 text-center font-bold">
+            <input type="password" id="pass-input" placeholder="登录密码" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl mb-6 text-center font-bold">
             <p id="login-msg" class="text-red-500 text-sm mb-4 hidden"></p>
             <button id="btn-login" class="w-full py-4 bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 active:scale-95 transition-transform">立即登录</button>
         </div>
@@ -59,7 +62,7 @@
             </div>
         </div>
 
-        <!-- 记账 -->
+        <!-- 记账表单 -->
         <div class="bg-white p-5 rounded-3xl shadow-sm space-y-4">
             <div class="grid grid-cols-2 gap-3">
                 <div class="space-y-1">
@@ -100,7 +103,7 @@
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         // ========================================================
-        // 核心配置：请务必替换为你自己的 Firebase 配置
+        // 1. 核心配置：请务必替换为你自己的 Firebase 配置
         // ========================================================
         const firebaseConfig = {
 		  apiKey: "AIzaSyDRKsIjOw398wYpvhHlLNrqEGlV-pq3AdY",
@@ -112,41 +115,52 @@
 		  measurementId: "G-62KPF9GFKK"
 		};
 
+        // ========================================================
+        // 2. 备选配置：如果你还没有 config.json 和 user.json，系统会使用以下默认值
+        // ========================================================
+        const DEFAULT_SYSTEM_CONFIG = {
+            telcoOptions: ["Maxis", "Digi", "Celcom", "U Mobile", "RedONE", "Yes", "XOX", "Unifi"],
+            paymentMethods: ["Cash", "TNG", "Bank Transfer"],
+            customerGroups: ["普通客户", "熟客", "批发商"]
+        };
+
+        const DEFAULT_USER_CONFIG = {
+            users: [
+                { id: "admin", password: "123" },
+                { id: "staff", password: "456" }
+            ]
+        };
+
         const config = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : myFirebaseConfig;
         
-        // 增加初始化防护
         let db, auth;
         try {
             const app = initializeApp(config);
             db = getFirestore(app);
             auth = getAuth(app);
         } catch (e) {
-            alert("Firebase 初始化失败，请检查配置是否正确填入！");
+            console.error("Firebase Init Error:", e);
         }
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'phone-billing-v2';
-        let SYSTEM_CONFIG = {};
-        let USER_CONFIG = {};
+        let SYSTEM_CONFIG = DEFAULT_SYSTEM_CONFIG;
+        let USER_CONFIG = DEFAULT_USER_CONFIG;
         let records = [];
 
         async function init() {
+            // 尝试加载本地文件，如果加载失败则使用默认值
             try {
-                // 读取本地 JSON
                 const cRes = await fetch('config.json');
                 const uRes = await fetch('user.json');
-                
-                if (!cRes.ok || !uRes.ok) throw new Error("JSON 文件未找到或访问受限");
-
-                SYSTEM_CONFIG = await cRes.json();
-                USER_CONFIG = await uRes.json();
-                
-                populateSelects();
-                checkAuth();
-                document.getElementById('loading-screen')?.remove();
+                if (cRes.ok) SYSTEM_CONFIG = await cRes.json();
+                if (uRes.ok) USER_CONFIG = await uRes.json();
             } catch (e) {
-                console.error(e);
-                alert("加载失败: " + e.message + "\n1. 检查文件是否存在\n2. 检查是否在服务器环境下运行(不能直接双击打开)");
+                console.log("使用内置默认配置运行");
             }
+            
+            populateSelects();
+            checkAuth();
+            document.getElementById('loading-screen')?.remove();
         }
 
         function populateSelects() {
@@ -154,13 +168,12 @@
                 const el = document.getElementById(id);
                 if (el) el.innerHTML = list.map(i => `<option value="${i}">${i}</option>`).join('');
             };
-            fill('telco', SYSTEM_CONFIG.telcoOptions || []);
-            fill('payment', SYSTEM_CONFIG.paymentMethods || []);
-            fill('group', SYSTEM_CONFIG.customerGroups || []);
+            fill('telco', SYSTEM_CONFIG.telcoOptions);
+            fill('payment', SYSTEM_CONFIG.paymentMethods);
+            fill('group', SYSTEM_CONFIG.customerGroups);
         }
 
-        // 修复方法：通过 addEventListener 绑定事件，而不是在 HTML 写 onclick
-        document.getElementById('btn-login').addEventListener('click', async () => {
+        document.getElementById('btn-login').addEventListener('click', () => {
             const id = document.getElementById('user-id').value;
             const pw = document.getElementById('pass-input').value;
             const msg = document.getElementById('login-msg');
@@ -182,8 +195,9 @@
         });
 
         document.getElementById('btn-add').addEventListener('click', async () => {
-            const amt = parseFloat(document.getElementById('amount').value);
-            if (!amt) return showToast("请输入金额");
+            const amtVal = document.getElementById('amount').value;
+            const amt = parseFloat(amtVal);
+            if (!amt || isNaN(amt)) return showToast("请输入有效金额");
 
             try {
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'records'), {
@@ -195,18 +209,18 @@
                     timestamp: serverTimestamp()
                 });
                 document.getElementById('amount').value = '';
-                showToast("云端保存成功");
+                showToast("✅ 云端已同步");
             } catch (e) {
-                showToast("保存失败: " + e.message);
+                showToast("❌ 保存失败，请检查数据库权限");
+                console.error(e);
             }
         });
 
-        // 全局删除函数需要挂载到 window
         window.deleteRec = async (id) => {
-            if (confirm("删除这条云端记录？")) {
+            if (confirm("确定要删除这条云端记录吗？")) {
                 try {
                     await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'records', id));
-                    showToast("已从云端移除");
+                    showToast("已删除");
                 } catch (e) {
                     showToast("删除失败");
                 }
@@ -222,7 +236,7 @@
                 await signInAnonymously(auth);
                 startListening();
             } catch (e) {
-                showToast("Firebase 登录失败");
+                showToast("连接 Firebase 失败");
             }
         }
 
@@ -233,7 +247,10 @@
                     .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
                 renderRecords();
             }, (error) => {
-                console.error("监听失败:", error);
+                console.error("Firestore Listen Error:", error);
+                if (error.code === 'permission-denied') {
+                    showToast("权限不足：请在 Firebase 控制台设置 Rules");
+                }
             });
         }
 
@@ -249,7 +266,7 @@
                     <div class="bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center border border-slate-50">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 rounded-xl ${r.payment === 'Cash' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'} flex items-center justify-center font-bold text-xs">
-                                ${r.payment === 'Cash' ? '金' : '卡'}
+                                ${r.payment === 'Cash' ? '现金' : '电子'}
                             </div>
                             <div>
                                 <h4 class="font-bold text-slate-800 text-sm">${r.telco}</h4>
@@ -258,7 +275,7 @@
                         </div>
                         <div class="flex items-center gap-3">
                             <span class="font-black text-emerald-600">RM ${r.amount?.toFixed(2)}</span>
-                            <button onclick="deleteRec('${r.id}')" class="text-slate-200 hover:text-red-400">
+                            <button onclick="deleteRec('${r.id}')" class="text-slate-200 hover:text-red-400 p-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                             </button>
                         </div>
