@@ -1,0 +1,23 @@
+{
+  "telcoOptions": [
+    "Maxis",
+    "Digi",
+    "Celcom",
+    "U Mobile",
+    "RedONE",
+    "Yes",
+    "XOX",
+    "Unifi"
+  ],
+  "customerGroups": [
+    "普通客户",
+    "熟客",
+    "批发商",
+    "员工"
+  ],
+  "paymentMethods": [
+    "Cash",
+    "TNG",
+    "Bank"
+  ]
+}
