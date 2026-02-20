@@ -12,12 +12,15 @@
         input, select { outline: none !important; }
         .record-card { transition: all 0.2s; }
         .record-card:active { transform: scale(0.98); }
+        #loading-screen { position: fixed; inset: 0; background: white; z-index: 3000; display: flex; align-items: center; justify-content: center; }
     </style>
 </head>
 <body class="pb-20">
 
+    <div id="loading-screen text-slate-400 text-sm">系统加载中...</div>
+
     <!-- 登录遮罩层 -->
-    <div id="login-overlay" class="fixed inset-0 bg-slate-100 z-[2000] flex items-center justify-center p-6">
+    <div id="login-overlay" class="fixed inset-0 bg-slate-100 z-[2000] flex items-center justify-center p-6 hidden">
         <div class="w-full max-w-sm bg-white rounded-3xl shadow-2xl p-8 text-center">
             <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
@@ -26,7 +29,7 @@
             <input type="text" id="user-id" placeholder="用户 ID" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl mb-4">
             <input type="password" id="pass-input" placeholder="登录密码" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl mb-6">
             <p id="login-msg" class="text-red-500 text-sm mb-4 hidden"></p>
-            <button onclick="handleLogin()" class="w-full py-4 bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 active:scale-95 transition-transform">立即登录</button>
+            <button id="btn-login" class="w-full py-4 bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 active:scale-95 transition-transform">立即登录</button>
         </div>
     </div>
 
@@ -38,7 +41,7 @@
             </div>
             <span class="font-bold tracking-wide" id="nav-title">智能云收账</span>
         </div>
-        <button onclick="logout()" class="p-2 bg-black/10 rounded-lg active:scale-90 transition-transform">
+        <button id="btn-logout" class="p-2 bg-black/10 rounded-lg active:scale-90 transition-transform">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
         </button>
     </nav>
@@ -80,32 +83,24 @@
                 </div>
             </div>
 
-            <button onclick="addRecord()" class="w-full py-4 bg-emerald-500 text-white font-bold rounded-2xl shadow-lg shadow-emerald-100 active:scale-95 transition-transform flex items-center justify-center gap-2 mt-2">
+            <button id="btn-add" class="w-full py-4 bg-emerald-500 text-white font-bold rounded-2xl shadow-lg shadow-emerald-100 active:scale-95 transition-transform flex items-center justify-center gap-2 mt-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
                 确认并存入云端
             </button>
         </div>
 
-        <!-- 列表 -->
-        <div class="space-y-3">
-            <div class="flex justify-between items-center px-1">
-                <h3 class="font-black text-slate-700">实时流水记录</h3>
-                <span class="text-[10px] bg-slate-200 text-slate-500 px-2 py-1 rounded-full font-bold">LIVE</span>
-            </div>
-            <div id="record-list" class="space-y-3"></div>
-        </div>
+        <div id="record-list" class="space-y-3"></div>
     </div>
 
     <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full text-sm shadow-2xl opacity-0 transition-opacity z-[3000] pointer-events-none"></div>
 
-    <!-- Firebase SDK (注意：模块化导入) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         // ========================================================
-        // 1. 请在这里填入你的真实 Firebase 配置
+        // 核心配置：请务必替换为你自己的 Firebase 配置
         // ========================================================
         const firebaseConfig = {
 		  apiKey: "AIzaSyDRKsIjOw398wYpvhHlLNrqEGlV-pq3AdY",
@@ -118,43 +113,54 @@
 		};
 
         const config = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : myFirebaseConfig;
-        const app = initializeApp(config);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'phone-billing-v2';
+        
+        // 增加初始化防护
+        let db, auth;
+        try {
+            const app = initializeApp(config);
+            db = getFirestore(app);
+            auth = getAuth(app);
+        } catch (e) {
+            alert("Firebase 初始化失败，请检查配置是否正确填入！");
+        }
 
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'phone-billing-v2';
         let SYSTEM_CONFIG = {};
         let USER_CONFIG = {};
         let records = [];
 
-        // 初始化加载配置
         async function init() {
             try {
-                const [cRes, uRes] = await Promise.all([
-                    fetch('config.json').then(r => r.json()),
-                    fetch('user.json').then(r => r.json())
-                ]);
-                SYSTEM_CONFIG = cRes;
-                USER_CONFIG = uRes;
+                // 读取本地 JSON
+                const cRes = await fetch('config.json');
+                const uRes = await fetch('user.json');
+                
+                if (!cRes.ok || !uRes.ok) throw new Error("JSON 文件未找到或访问受限");
+
+                SYSTEM_CONFIG = await cRes.json();
+                USER_CONFIG = await uRes.json();
                 
                 populateSelects();
                 checkAuth();
+                document.getElementById('loading-screen')?.remove();
             } catch (e) {
-                showToast("无法加载 JSON 配置文件");
+                console.error(e);
+                alert("加载失败: " + e.message + "\n1. 检查文件是否存在\n2. 检查是否在服务器环境下运行(不能直接双击打开)");
             }
         }
 
         function populateSelects() {
             const fill = (id, list) => {
                 const el = document.getElementById(id);
-                el.innerHTML = list.map(i => `<option value="${i}">${i}</option>`).join('');
+                if (el) el.innerHTML = list.map(i => `<option value="${i}">${i}</option>`).join('');
             };
-            fill('telco', SYSTEM_CONFIG.telcoOptions);
-            fill('payment', SYSTEM_CONFIG.paymentMethods);
-            fill('group', SYSTEM_CONFIG.customerGroups);
+            fill('telco', SYSTEM_CONFIG.telcoOptions || []);
+            fill('payment', SYSTEM_CONFIG.paymentMethods || []);
+            fill('group', SYSTEM_CONFIG.customerGroups || []);
         }
 
-        window.handleLogin = async () => {
+        // 修复方法：通过 addEventListener 绑定事件，而不是在 HTML 写 onclick
+        document.getElementById('btn-login').addEventListener('click', async () => {
             const id = document.getElementById('user-id').value;
             const pw = document.getElementById('pass-input').value;
             const msg = document.getElementById('login-msg');
@@ -168,60 +174,14 @@
                 msg.innerText = "ID 或密码错误";
                 msg.classList.remove('hidden');
             }
-        };
+        });
 
-        async function enterApp() {
-            document.getElementById('login-overlay').style.display = 'none';
-            document.getElementById('main-app').classList.remove('hidden');
-            document.getElementById('current-op').innerText = sessionStorage.getItem('userName');
-            
-            // Firebase 匿名登录以启用 Firestore 访问
-            await signInAnonymously(auth);
-            startListening();
-        }
+        document.getElementById('btn-logout').addEventListener('click', () => {
+            sessionStorage.clear();
+            location.reload();
+        });
 
-        function startListening() {
-            const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'records'));
-            onSnapshot(q, (snapshot) => {
-                records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-                    .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-                renderRecords();
-            });
-        }
-
-        function renderRecords() {
-            const list = document.getElementById('record-list');
-            const totalEl = document.getElementById('today-total');
-            let total = 0;
-
-            list.innerHTML = records.map(r => {
-                total += r.amount || 0;
-                const time = r.timestamp ? new Date(r.timestamp.seconds * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '...';
-                return `
-                    <div class="bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center record-card border border-slate-50">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl ${r.payment === 'Cash' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'} flex items-center justify-center font-bold text-xs">
-                                ${r.payment === 'Cash' ? '金' : '卡'}
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-slate-800 text-sm">${r.telco}</h4>
-                                <p class="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">${time} · ${r.createdBy}</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span class="font-black text-emerald-600">RM ${r.amount?.toFixed(2)}</span>
-                            <button onclick="window.deleteRec('${r.id}')" class="text-slate-200 hover:text-red-400 transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            
-            totalEl.innerText = `RM ${total.toFixed(2)}`;
-        }
-
-        window.addRecord = async () => {
+        document.getElementById('btn-add').addEventListener('click', async () => {
             const amt = parseFloat(document.getElementById('amount').value);
             if (!amt) return showToast("请输入金额");
 
@@ -237,24 +197,83 @@
                 document.getElementById('amount').value = '';
                 showToast("云端保存成功");
             } catch (e) {
-                showToast("保存失败");
+                showToast("保存失败: " + e.message);
             }
-        };
+        });
 
+        // 全局删除函数需要挂载到 window
         window.deleteRec = async (id) => {
             if (confirm("删除这条云端记录？")) {
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'records', id));
-                showToast("已从云端移除");
+                try {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'records', id));
+                    showToast("已从云端移除");
+                } catch (e) {
+                    showToast("删除失败");
+                }
             }
         };
 
-        window.logout = () => {
-            sessionStorage.clear();
-            location.reload();
-        };
+        async function enterApp() {
+            document.getElementById('login-overlay').style.display = 'none';
+            document.getElementById('main-app').classList.remove('hidden');
+            document.getElementById('current-op').innerText = sessionStorage.getItem('userName');
+            
+            try {
+                await signInAnonymously(auth);
+                startListening();
+            } catch (e) {
+                showToast("Firebase 登录失败");
+            }
+        }
+
+        function startListening() {
+            const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'records'));
+            onSnapshot(q, (snapshot) => {
+                records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+                    .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+                renderRecords();
+            }, (error) => {
+                console.error("监听失败:", error);
+            });
+        }
+
+        function renderRecords() {
+            const list = document.getElementById('record-list');
+            const totalEl = document.getElementById('today-total');
+            let total = 0;
+
+            list.innerHTML = records.map(r => {
+                total += r.amount || 0;
+                const time = r.timestamp ? new Date(r.timestamp.seconds * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '...';
+                return `
+                    <div class="bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center border border-slate-50">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl ${r.payment === 'Cash' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'} flex items-center justify-center font-bold text-xs">
+                                ${r.payment === 'Cash' ? '金' : '卡'}
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-slate-800 text-sm">${r.telco}</h4>
+                                <p class="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">${time} · ${r.createdBy}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="font-black text-emerald-600">RM ${r.amount?.toFixed(2)}</span>
+                            <button onclick="deleteRec('${r.id}')" class="text-slate-200 hover:text-red-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            totalEl.innerText = `RM ${total.toFixed(2)}`;
+        }
 
         function checkAuth() {
-            if (sessionStorage.getItem('isLoggedIn') === 'true') enterApp();
+            if (sessionStorage.getItem('isLoggedIn') === 'true') {
+                enterApp();
+            } else {
+                document.getElementById('login-overlay').classList.remove('hidden');
+            }
         }
 
         function showToast(m) {
