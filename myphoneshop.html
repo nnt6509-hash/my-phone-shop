@@ -3,358 +3,265 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>云端收账系统</title>
-    <!-- Firebase SDK (兼容版) -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <title>智能云收账系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        :root { --primary: #10b981; --primary-dark: #059669; --bg: #f1f5f9; --error: #ef4444; --warning: #f59e0b; --dark: #1e293b; --blue: #3b82f6; --purple: #8b5cf6; }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { margin: 0; font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--dark); overflow-x: hidden; }
-        
-        /* 登录遮罩 */
-        #login-overlay { position: fixed; inset: 0; background: var(--dark); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 20px; }
-        .login-box { background: white; width: 100%; max-width: 350px; border-radius: 30px; padding: 30px; text-align: center; }
-
-        /* 导航栏 */
-        nav { background: var(--primary); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .logo h1 { margin: 0; font-size: 18px; font-weight: 900; }
-        .user-info { font-size: 10px; opacity: 0.9; }
-
-        main { max-width: 450px; margin: 0 auto; padding: 15px; }
-
-        /* 汇总卡片 */
-        .summary-card { background: linear-gradient(135deg, var(--dark), #334155); border-radius: 24px; padding: 20px; color: white; margin-bottom: 15px; position: relative; }
-        .summary-value { font-size: 28px; font-weight: 900; color: var(--primary); margin: 5px 0; }
-        
-        /* 核心卡片 */
-        .card { background: white; border-radius: 24px; padding: 20px; border: 1px solid #e2e8f0; margin-bottom: 15px; }
-        .form-group { margin-bottom: 15px; }
-        .form-label { display: block; font-size: 11px; font-weight: 800; color: #94a3b8; margin-bottom: 6px; text-transform: uppercase; }
-        select, input { width: 100%; padding: 14px; border-radius: 14px; border: 2px solid #f1f5f9; background: #f8fafc; font-size: 16px; font-weight: bold; outline: none; }
-        select:focus, input:focus { border-color: var(--primary); background: white; }
-        
-        .btn-submit { width: 100%; padding: 18px; border: none; background: var(--primary); color: white; border-radius: 18px; font-size: 16px; font-weight: 900; cursor: pointer; transition: 0.2s; }
-        .btn-submit:active { transform: scale(0.98); }
-
-        /* 选项卡 */
-        .tabs { display: flex; background: #e2e8f0; padding: 5px; border-radius: 15px; margin-bottom: 15px; gap: 5px; }
-        .tab-btn { flex: 1; border: none; padding: 12px 5px; border-radius: 12px; font-weight: bold; cursor: pointer; background: transparent; color: #64748b; font-size: 13px; }
-        .tab-btn.active { background: white; color: var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-
-        /* 列表项 */
-        .record-item { background: white; border-radius: 18px; padding: 15px; margin-bottom: 10px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
-        .record-info h4 { margin: 0; font-size: 15px; }
-        .record-info p { margin: 4px 0 0; font-size: 11px; color: #94a3b8; }
-        .record-amount { text-align: right; font-weight: 900; color: var(--primary); }
-
-        /* 侧边库存 */
-        .side-panel { position: fixed; right: -280px; top: 0; width: 260px; height: 100%; background: white; z-index: 1001; transition: 0.4s; padding: 20px; box-shadow: -5px 0 15px rgba(0,0,0,0.1); overflow-y: auto; }
-        .side-panel.open { right: 0; }
-        .side-btn { position: fixed; right: 0; top: 40%; background: var(--dark); color: white; padding: 10px 5px; border-radius: 10px 0 0 10px; writing-mode: vertical-lr; cursor: pointer; font-size: 12px; z-index: 99; }
-        
-        .hidden { display: none; }
+        :root { --primary: #10b981; --bg: #f1f5f9; }
+        body { background: var(--bg); font-family: -apple-system, sans-serif; }
+        .glass-nav { background: rgba(16, 185, 129, 0.95); backdrop-filter: blur(10px); }
+        input, select { outline: none !important; }
+        .record-card { transition: all 0.2s; }
+        .record-card:active { transform: scale(0.98); }
     </style>
 </head>
-<body>
+<body class="pb-20">
 
-    <!-- 登录 -->
-    <div id="login-overlay">
-        <div class="login-box">
-            <h2>职员登录</h2>
-            <div class="form-group">
-                <select id="login-select"></select>
+    <!-- 登录遮罩层 -->
+    <div id="login-overlay" class="fixed inset-0 bg-slate-100 z-[2000] flex items-center justify-center p-6">
+        <div class="w-full max-w-sm bg-white rounded-3xl shadow-2xl p-8 text-center">
+            <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
             </div>
-            <button class="btn-submit" onclick="login()">进入系统</button>
+            <h2 class="text-2xl font-bold text-slate-800 mb-6">系统身份验证</h2>
+            <input type="text" id="user-id" placeholder="用户 ID" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl mb-4">
+            <input type="password" id="pass-input" placeholder="登录密码" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl mb-6">
+            <p id="login-msg" class="text-red-500 text-sm mb-4 hidden"></p>
+            <button onclick="handleLogin()" class="w-full py-4 bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 active:scale-95 transition-transform">立即登录</button>
         </div>
     </div>
 
-    <nav>
-        <div class="logo">
-            <h1 id="shop-name-title">加载中...</h1>
-            <div class="user-info">职员: <span id="current-user-display">未登录</span></div>
+    <!-- 主界面 -->
+    <nav class="glass-nav text-white p-4 sticky top-0 z-50 flex justify-between items-center shadow-md">
+        <div class="flex items-center gap-2">
+            <div class="bg-white/20 p-2 rounded-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+            </div>
+            <span class="font-bold tracking-wide" id="nav-title">智能云收账</span>
         </div>
-        <div id="sync-status" style="font-size:10px; background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:10px;">同步中...</div>
+        <button onclick="logout()" class="p-2 bg-black/10 rounded-lg active:scale-90 transition-transform">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+        </button>
     </nav>
 
-    <div class="side-btn" onclick="toggleSide()">实时库存 ❯</div>
-    <div id="side-panel" class="side-panel">
-        <h3>库存余额</h3>
-        <div id="side-inventory-list"></div>
-        <button class="btn-submit" style="margin-top:20px; background:#e2e8f0; color:black;" onclick="toggleSide()">关闭</button>
-    </div>
-
-    <main>
-        <div class="summary-card">
-            <div style="font-size:11px; opacity:0.8;">今日进账 (已收)</div>
-            <div class="summary-value">RM <span id="today-total">0.00</span></div>
-            <div id="debt-alert" style="color:#fca5a5; font-size:10px; font-weight:bold; display:none;">⚠️ 存在未收清的欠款</div>
-        </div>
-
-        <div class="tabs">
-            <button class="tab-btn active" id="tab-form" onclick="showTab('form')">记账</button>
-            <button class="tab-btn" id="tab-list" onclick="showTab('list')">记录</button>
-            <button class="tab-btn" id="tab-debt" onclick="showTab('debt')">欠款</button>
-        </div>
-
-        <div id="section-form">
-            <div class="card">
-                <form id="main-form">
-                    <div class="form-group">
-                        <label class="form-label">操作类型</label>
-                        <select id="type-select" onchange="toggleFormMode()">
-                            <option value="sale">销售记录</option>
-                            <option value="plus">补库存 (增加余额)</option>
-                            <option value="debt">🛑 赊账 (客户未付)</option>
-                        </select>
-                    </div>
-                    <div id="normal-fields">
-                        <div class="form-group">
-                            <label class="form-label">电讯商</label>
-                            <select id="field-telco"></select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">手机号/备注</label>
-                            <input type="text" id="field-phone" placeholder="01x-xxxxxxx">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">金额 RM</label>
-                            <input type="number" step="0.01" id="field-amount" required>
-                        </div>
-                        <div class="form-group" id="paymethod-group">
-                            <label class="form-label">支付方式</label>
-                            <select id="field-method"></select>
-                        </div>
-                        <div class="form-group hidden" id="debt-name-group">
-                            <label class="form-label">欠款人姓名</label>
-                            <input type="text" id="field-debt-name" placeholder="请输入姓名">
-                        </div>
-                    </div>
-                    <button type="submit" class="btn-submit">确认并同步到云端</button>
-                </form>
+    <div class="max-w-md mx-auto p-4 space-y-4 hidden" id="main-app">
+        <!-- 统计 -->
+        <div class="grid grid-cols-2 gap-4">
+            <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-emerald-500">
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">今日累计</p>
+                <p class="text-xl font-black text-emerald-600" id="today-total">RM 0.00</p>
+            </div>
+            <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-blue-500">
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">操作员</p>
+                <p class="text-xl font-black text-blue-600 truncate" id="current-op">-</p>
             </div>
         </div>
 
-        <div id="section-list" class="hidden">
-            <div id="record-container"></div>
+        <!-- 记账 -->
+        <div class="bg-white p-5 rounded-3xl shadow-sm space-y-4">
+            <div class="grid grid-cols-2 gap-3">
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-slate-400 ml-1">电讯商</label>
+                    <select id="telco" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-100 text-sm font-semibold"></select>
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-slate-400 ml-1">金额 RM</label>
+                    <input type="number" id="amount" placeholder="0.00" step="0.01" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-100 text-sm font-semibold">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-slate-400 ml-1">支付方式</label>
+                    <select id="payment" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-100 text-sm font-semibold"></select>
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-slate-400 ml-1">客户群体</label>
+                    <select id="group" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-100 text-sm font-semibold"></select>
+                </div>
+            </div>
+
+            <button onclick="addRecord()" class="w-full py-4 bg-emerald-500 text-white font-bold rounded-2xl shadow-lg shadow-emerald-100 active:scale-95 transition-transform flex items-center justify-center gap-2 mt-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                确认并存入云端
+            </button>
         </div>
 
-        <div id="section-debt" class="hidden">
-            <div id="debt-container"></div>
+        <!-- 列表 -->
+        <div class="space-y-3">
+            <div class="flex justify-between items-center px-1">
+                <h3 class="font-black text-slate-700">实时流水记录</h3>
+                <span class="text-[10px] bg-slate-200 text-slate-500 px-2 py-1 rounded-full font-bold">LIVE</span>
+            </div>
+            <div id="record-list" class="space-y-3"></div>
         </div>
-    </main>
+    </div>
 
-    <script>
-        // ---------------------------------------------------------
-        // 1. 配置 Firebase (请填入你自己的配置)
-        // ---------------------------------------------------------
+    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full text-sm shadow-2xl opacity-0 transition-opacity z-[3000] pointer-events-none"></div>
+
+    <!-- Firebase SDK (注意：模块化导入) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        // ========================================================
+        // 1. 请在这里填入你的真实 Firebase 配置
+        // ========================================================
         const firebaseConfig = {
-			apiKey: "AIzaSyDRKsIjOw398wYpvhHlLNrqEGlV-pq3AdY",
-			authDomain: "myphoneshop-cf5ae.firebaseapp.com",
-			projectId: "myphoneshop-cf5ae",
-			storageBucket: "myphoneshop-cf5ae.firebasestorage.app",
-			messagingSenderId: "117311435705",
-			appId: "1:117311435705:web:e53f5f9813798c57e33c68",
-			measurementId: "G-62KPF9GFKK"
-  };
+		  apiKey: "AIzaSyDRKsIjOw398wYpvhHlLNrqEGlV-pq3AdY",
+		  authDomain: "myphoneshop-cf5ae.firebaseapp.com",
+		  projectId: "myphoneshop-cf5ae",
+		  storageBucket: "myphoneshop-cf5ae.firebasestorage.app",
+		  messagingSenderId: "117311435705",
+		  appId: "1:117311435705:web:e53f5f9813798c57e33c68",
+		  measurementId: "G-62KPF9GFKK"
+		};
 
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const auth = firebase.auth();
-        let currentUser = "";
-        let configData = {};
+        const config = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : myFirebaseConfig;
+        const app = initializeApp(config);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'phone-billing-v2';
 
-        // ---------------------------------------------------------
-        // 2. 初始化流程
-        // ---------------------------------------------------------
+        let SYSTEM_CONFIG = {};
+        let USER_CONFIG = {};
+        let records = [];
+
+        // 初始化加载配置
         async function init() {
             try {
-                const [uRes, cRes] = await Promise.all([fetch('user.json'), fetch('config.json')]);
-                const userJson = await uRes.json();
-                configData = await cRes.json();
-
-                // UI设置
-                document.getElementById('shop-name-title').innerText = userJson.shopName;
-                const lSel = document.getElementById('login-select');
-                userJson.staff.forEach(s => lSel.add(new Option(s, s)));
-
-                // 填充表单
-                const tSel = document.getElementById('field-telco');
-                configData.telcoOptions.forEach(t => tSel.add(new Option(t, t)));
-                const mSel = document.getElementById('field-method');
-                configData.paymentMethods.forEach(m => mSel.add(new Option(m, m)));
-
-                await auth.signInAnonymously();
-                document.getElementById('sync-status').innerText = "云端在线";
+                const [cRes, uRes] = await Promise.all([
+                    fetch('config.json').then(r => r.json()),
+                    fetch('user.json').then(r => r.json())
+                ]);
+                SYSTEM_CONFIG = cRes;
+                USER_CONFIG = uRes;
+                
+                populateSelects();
+                checkAuth();
             } catch (e) {
-                alert("加载配置失败，请确保 user.json 和 config.json 在根目录");
+                showToast("无法加载 JSON 配置文件");
             }
         }
 
-        function login() {
-            currentUser = document.getElementById('login-select').value;
-            document.getElementById('current-user-display').innerText = currentUser;
+        function populateSelects() {
+            const fill = (id, list) => {
+                const el = document.getElementById(id);
+                el.innerHTML = list.map(i => `<option value="${i}">${i}</option>`).join('');
+            };
+            fill('telco', SYSTEM_CONFIG.telcoOptions);
+            fill('payment', SYSTEM_CONFIG.paymentMethods);
+            fill('group', SYSTEM_CONFIG.customerGroups);
+        }
+
+        window.handleLogin = async () => {
+            const id = document.getElementById('user-id').value;
+            const pw = document.getElementById('pass-input').value;
+            const msg = document.getElementById('login-msg');
+
+            const valid = USER_CONFIG.users?.find(u => u.id === id && u.password === pw);
+            if (valid) {
+                sessionStorage.setItem('isLoggedIn', 'true');
+                sessionStorage.setItem('userName', id);
+                enterApp();
+            } else {
+                msg.innerText = "ID 或密码错误";
+                msg.classList.remove('hidden');
+            }
+        };
+
+        async function enterApp() {
             document.getElementById('login-overlay').style.display = 'none';
-            startRealtimeSync();
-        }
-
-        // ---------------------------------------------------------
-        // 3. 实时云端同步 (Firestore)
-        // ---------------------------------------------------------
-        function startRealtimeSync() {
-            // 记录监听
-            db.collection("records").orderBy("time", "desc").limit(50).onSnapshot(snap => {
-                const recs = snap.docs.map(d => ({id: d.id, ...d.data()}));
-                renderRecords(recs);
-                updateSummary(recs);
-            });
-
-            // 欠款监听
-            db.collection("debts").onSnapshot(snap => {
-                const debts = snap.docs.map(d => ({id: d.id, ...d.data()}));
-                renderDebts(debts);
-            });
-
-            // 库存监听
-            db.collection("inventory").onSnapshot(snap => {
-                const inv = {};
-                snap.forEach(d => inv[d.id] = d.data().val);
-                renderInventory(inv);
-            });
-        }
-
-        // ---------------------------------------------------------
-        // 4. 操作逻辑
-        // ---------------------------------------------------------
-        document.getElementById('main-form').onsubmit = async (e) => {
-            e.preventDefault();
-            const type = document.getElementById('type-select').value;
-            const telco = document.getElementById('field-telco').value;
-            const amount = parseFloat(document.getElementById('field-amount').value);
-            const phone = document.getElementById('field-phone').value;
-            const method = type === 'debt' ? 'Credit' : document.getElementById('field-method').value;
-            const debtName = document.getElementById('field-debt-name').value;
-
-            const batch = db.batch();
+            document.getElementById('main-app').classList.remove('hidden');
+            document.getElementById('current-op').innerText = sessionStorage.getItem('userName');
             
-            // 1. 增加流水记录
-            const recRef = db.collection("records").doc();
-            batch.set(recRef, {
-                type, telco, amount, phone, method, staff: currentUser,
-                debtName: type === 'debt' ? debtName : "",
-                time: Date.now(),
-                dateStr: new Date().toDateString()
-            });
-
-            // 2. 更新库存 (这里使用 increment 原子操作)
-            const invRef = db.collection("inventory").doc(telco);
-            const change = (type === 'plus') ? amount : (type === 'sale' || type === 'debt' ? -amount : 0);
-            batch.set(invRef, { val: firebase.firestore.FieldValue.increment(change) }, { merge: true });
-
-            // 3. 如果是赊账，加到欠款表
-            if (type === 'debt') {
-                const debtRef = db.collection("debts").doc();
-                batch.set(debtRef, { name: debtName, amount, phone, time: Date.now() });
-            }
-
-            await batch.commit();
-            e.target.reset();
-            toggleFormMode();
-            alert("同步成功！");
-        };
-
-        // 还款逻辑
-        window.repayDebt = async (id, name, amount, phone) => {
-            if (!confirm(`确认收到 ${name} 的还款 RM ${amount}？`)) return;
-            
-            const batch = db.batch();
-            // 删除欠款
-            batch.delete(db.collection("debts").doc(id));
-            // 增加一条还款流水
-            batch.set(db.collection("records").doc(), {
-                type: 'repay',
-                telco: 'Repay',
-                amount: amount,
-                phone: phone,
-                method: 'Cash/Online',
-                staff: currentUser,
-                debtName: name,
-                time: Date.now(),
-                dateStr: new Date().toDateString()
-            });
-            await batch.commit();
-        };
-
-        // ---------------------------------------------------------
-        // 5. UI 渲染渲染
-        // ---------------------------------------------------------
-        function renderRecords(recs) {
-            const container = document.getElementById('record-container');
-            container.innerHTML = recs.map(r => `
-                <div class="record-item">
-                    <div class="record-info">
-                        <h4>${r.phone || '无号码'}</h4>
-                        <p>${r.telco} | ${r.staff} | ${r.method}</p>
-                    </div>
-                    <div class="record-amount" style="color:${r.type==='debt'?'red':(r.type==='plus'?'#3b82f6':'#10b981')}">
-                        ${r.type==='plus'?'+':''}RM ${r.amount.toFixed(2)}
-                    </div>
-                </div>
-            `).join('');
+            // Firebase 匿名登录以启用 Firestore 访问
+            await signInAnonymously(auth);
+            startListening();
         }
 
-        function renderDebts(debts) {
-            const container = document.getElementById('debt-container');
-            document.getElementById('debt-alert').style.display = debts.length > 0 ? 'block' : 'none';
-            if (debts.length === 0) { container.innerHTML = '<p style="text-align:center;color:#94a3b8">暂无欠款记录</p>'; return; }
-            container.innerHTML = debts.map(d => `
-                <div class="record-item" style="border-left:5px solid red">
-                    <div class="record-info">
-                        <h4>${d.name}</h4>
-                        <p>电话: ${d.phone} | ${new Date(d.time).toLocaleDateString()}</p>
-                    </div>
-                    <div style="text-align:right">
-                        <div style="font-weight:900; color:red">RM ${d.amount.toFixed(2)}</div>
-                        <button onclick="repayDebt('${d.id}','${d.name}',${d.amount},'${d.phone}')" style="margin-top:5px; font-size:10px; padding:4px 8px; background:var(--primary); color:white; border:none; border-radius:5px;">收钱</button>
-                    </div>
-                </div>
-            `).join('');
+        function startListening() {
+            const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'records'));
+            onSnapshot(q, (snapshot) => {
+                records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+                    .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+                renderRecords();
+            });
         }
 
-        function renderInventory(inv) {
-            const list = document.getElementById('side-inventory-list');
-            list.innerHTML = configData.telcoOptions.map(t => {
-                const val = inv[t] || 0;
+        function renderRecords() {
+            const list = document.getElementById('record-list');
+            const totalEl = document.getElementById('today-total');
+            let total = 0;
+
+            list.innerHTML = records.map(r => {
+                total += r.amount || 0;
+                const time = r.timestamp ? new Date(r.timestamp.seconds * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '...';
                 return `
-                    <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #f1f5f9">
-                        <span style="font-weight:bold">${t}</span>
-                        <span style="font-weight:900; color:${val < 50 ? 'red' : 'var(--primary)'}">RM ${val.toFixed(2)}</span>
+                    <div class="bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center record-card border border-slate-50">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl ${r.payment === 'Cash' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'} flex items-center justify-center font-bold text-xs">
+                                ${r.payment === 'Cash' ? '金' : '卡'}
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-slate-800 text-sm">${r.telco}</h4>
+                                <p class="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">${time} · ${r.createdBy}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="font-black text-emerald-600">RM ${r.amount?.toFixed(2)}</span>
+                            <button onclick="window.deleteRec('${r.id}')" class="text-slate-200 hover:text-red-400 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            </button>
+                        </div>
                     </div>
                 `;
             }).join('');
+            
+            totalEl.innerText = `RM ${total.toFixed(2)}`;
         }
 
-        function updateSummary(recs) {
-            const today = new Date().toDateString();
-            const total = recs.filter(r => r.dateStr === today && r.type !== 'debt' && r.type !== 'plus')
-                              .reduce((sum, r) => sum + r.amount, 0);
-            document.getElementById('today-total').innerText = total.toFixed(2);
+        window.addRecord = async () => {
+            const amt = parseFloat(document.getElementById('amount').value);
+            if (!amt) return showToast("请输入金额");
+
+            try {
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'records'), {
+                    telco: document.getElementById('telco').value,
+                    amount: amt,
+                    payment: document.getElementById('payment').value,
+                    group: document.getElementById('group').value,
+                    createdBy: sessionStorage.getItem('userName'),
+                    timestamp: serverTimestamp()
+                });
+                document.getElementById('amount').value = '';
+                showToast("云端保存成功");
+            } catch (e) {
+                showToast("保存失败");
+            }
+        };
+
+        window.deleteRec = async (id) => {
+            if (confirm("删除这条云端记录？")) {
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'records', id));
+                showToast("已从云端移除");
+            }
+        };
+
+        window.logout = () => {
+            sessionStorage.clear();
+            location.reload();
+        };
+
+        function checkAuth() {
+            if (sessionStorage.getItem('isLoggedIn') === 'true') enterApp();
         }
 
-        // 工具函数
-        window.toggleSide = () => document.getElementById('side-panel').classList.toggle('open');
-        window.showTab = (t) => {
-            ['form', 'list', 'debt'].forEach(s => {
-                document.getElementById('section-' + s).classList.toggle('hidden', s !== t);
-                document.getElementById('tab-' + s).classList.toggle('active', s === t);
-            });
-        };
-        window.toggleFormMode = () => {
-            const type = document.getElementById('type-select').value;
-            document.getElementById('paymethod-group').classList.toggle('hidden', type === 'debt');
-            document.getElementById('debt-name-group').classList.toggle('hidden', type !== 'debt');
-        };
+        function showToast(m) {
+            const t = document.getElementById('toast');
+            t.innerText = m; t.style.opacity = 1;
+            setTimeout(() => t.style.opacity = 0, 2000);
+        }
 
         init();
     </script>
